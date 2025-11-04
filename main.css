@@ -1,4 +1,4 @@
-   body {
+ body {
             background: linear-gradient(135deg, #2c3e50 0%, #4a6491 100%);
             min-height: 100vh;
             padding: 15px;
@@ -40,6 +40,17 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(243, 156, 18, 0.4);
         }
+        .btn-info {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .btn-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
         .form-control {
             border-radius: 10px;
             padding: 12px;
@@ -78,6 +89,20 @@
         }
         .delete-btn:hover {
             background: linear-gradient(45deg, #c0392b, #a93226);
+            transform: translateY(-1px);
+        }
+        .edit-btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .edit-btn:hover {
+            background: linear-gradient(45deg, #2980b9, #2573a7);
             transform: translateY(-1px);
         }
         .header-title {
@@ -226,4 +251,16 @@
         }
         .filter-group {
             margin-bottom: 10px;
+        }
+        .estoque-form {
+            background: rgba(248, 249, 250, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+        }
+        .estoque-form-title {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-weight: 600;
         }
