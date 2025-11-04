@@ -1,4 +1,4 @@
-$(document).ready(function() {
+ $(document).ready(function() {
             let movimentacoes = [];
             let estoque = [];
             const STORAGE_MOV_KEY = 'transporte_movimentacoes';
@@ -264,50 +264,34 @@ $(document).ready(function() {
                 });
             }
 
-            // Função para atualizar a tabela de estoque
-            function atualizarTabelaEstoque() {
-                const tbody = $('#estoqueTableBody');
-                const info = $('#estoqueInfo');
-                tbody.empty();
-
-                if (estoque.length === 0) {
-                    info.show();
-                    return;
-                }
-
-                info.hide();
-                estoque.forEach(item => {
-                    const statusVenc = getStatusVencimento(item.dataVencimento);
-                    const statusClasse = statusVenc.classe;
-                    const estoqueZeroClasse = item.quantidade === 0 ? 'estoque-zero' : '';
-                    const finalClasse = statusClasse ? statusClasse : estoqueZeroClasse;
-                    
-                    const row = `
-                        <tr class="${finalClasse}">
-                            <td>${item.produto}</td>
-                            <td>${item.lote}</td>
-                            <td>${formatarData(item.dataFabricacao)}</td>
-                            <td>${formatarData(item.dataVencimento)}</td>
-                            <td><strong>${item.quantidade}</strong></td>
-                            <td>${statusVenc.status}</td>
-                        </tr>
-                    `;
-                    tbody.append(row);
-                });
-            }
-
             // Função para aplicar filtros
             function aplicarFiltros() {
+                const filtroDataInicio = $('#filterDataInicio').val();
+                const filtroDataFim = $('#filterDataFim').val();
                 const filtroCliente = $('#filterCliente').val().toLowerCase();
                 const filtroProduto = $('#filterProduto').val().toLowerCase();
                 const filtroTipo = $('#filterTipo').val();
 
                 const dadosFiltrados = movimentacoes.filter(dado => {
+                    // Filtro por período
+                    let dataMatch = true;
+                    if (filtroDataInicio || filtroDataFim) {
+                        const dataMov = new Date(dado.dataMovimentacao);
+                        if (filtroDataInicio) {
+                            const dataInicio = new Date(filtroDataInicio);
+                            dataMatch = dataMatch && dataMov >= dataInicio;
+                        }
+                        if (filtroDataFim) {
+                            const dataFim = new Date(filtroDataFim);
+                            dataMatch = dataMatch && dataMov <= dataFim;
+                        }
+                    }
+                    
                     const clienteMatch = !filtroCliente || dado.cliente.toLowerCase().includes(filtroCliente);
                     const produtoMatch = !filtroProduto || dado.produto.toLowerCase().includes(filtroProduto);
                     const tipoMatch = !filtroTipo || dado.tipoMovimentacao === filtroTipo;
                     
-                    return clienteMatch && produtoMatch && tipoMatch;
+                    return dataMatch && clienteMatch && produtoMatch && tipoMatch;
                 });
 
                 renderizarTabelaMovimentacoes(dadosFiltrados);
@@ -317,7 +301,7 @@ $(document).ready(function() {
             $('#applyFilter').on('click', aplicarFiltros);
             
             $('#clearFilter').on('click', function() {
-                $('#filterCliente, #filterProduto').val('');
+                $('#filterDataInicio, #filterDataFim, #filterCliente, #filterProduto').val('');
                 $('#filterTipo').val('');
                 aplicarFiltros();
             });
