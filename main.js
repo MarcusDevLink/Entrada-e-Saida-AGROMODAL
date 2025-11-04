@@ -1,6 +1,7 @@
- $(document).ready(function() {
+$(document).ready(function() {
             let movimentacoes = [];
             let estoque = [];
+            let editandoItemId = null;
             const STORAGE_MOV_KEY = 'transporte_movimentacoes';
             const STORAGE_ESTOQUE_KEY = 'transporte_estoque';
 
@@ -68,6 +69,7 @@
             // Atualizar estoque baseado na movimentação
             function atualizarEstoque(movimentacao) {
                 const { 
+                    cliente,
                     produto, 
                     lote, 
                     qtde, 
@@ -80,19 +82,23 @@
                 
                 if (quantidade <= 0) return;
 
-                // Procurar produto e lote no estoque
+                // Procurar produto e lote no estoque (considerando cliente também)
                 const indexEstoque = estoque.findIndex(item => 
-                    item.produto === produto && item.lote === lote
+                    item.produto === produto && 
+                    item.lote === lote && 
+                    item.cliente === cliente
                 );
 
                 if (tipoMovimentacao === 'entrada') {
                     if (indexEstoque === -1) {
-                        // Novo produto/lote
+                        // Novo produto/lote/cliente
                         estoque.push({
-                            produto,
-                            lote,
-                            dataFabricacao,
-                            dataVencimento,
+                            id: Date.now(), // ID único para edição
+                            cliente: cliente,
+                            produto: produto,
+                            lote: lote,
+                            dataFabricacao: dataFabricacao,
+                            dataVencimento: dataVencimento,
                             quantidade: quantidade,
                             ultimaMovimentacao: dataMovimentacao
                         });
@@ -109,7 +115,7 @@
                     } else {
                         // Verificar se há quantidade suficiente
                         if (estoque[indexEstoque].quantidade < quantidade) {
-                            alert(`Quantidade insuficiente no estoque para ${produto} (Lote: ${lote})!\nEstoque atual: ${estoque[indexEstoque].quantidade}, Tentativa de saída: ${quantidade}`);
+                            alert(`Quantidade insuficiente no estoque para ${produto} (Lote: ${lote}) do cliente ${cliente}!\nEstoque atual: ${estoque[indexEstoque].quantidade}, Tentativa de saída: ${quantidade}`);
                             return false;
                         }
                         
@@ -134,7 +140,9 @@
                     // Para saídas, verificar se o produto existe no estoque acumulado até aquele ponto
                     if (mov.tipoMovimentacao === 'saida') {
                         const indexEstoque = estoque.findIndex(item => 
-                            item.produto === mov.produto && item.lote === mov.lote
+                            item.produto === mov.produto && 
+                            item.lote === mov.lote && 
+                            item.cliente === mov.cliente
                         );
                         
                         if (indexEstoque === -1) {
@@ -142,7 +150,7 @@
                             mostrarAlertaProdutoNaoEncontrado(mov.produto, mov.lote);
                         } else if (estoque[indexEstoque].quantidade < parseInt(mov.qtde)) {
                             // Quantidade insuficiente - ignorar esta movimentação
-                            alert(`Quantidade insuficiente para ${mov.produto} (Lote: ${mov.lote}) na data ${formatarData(mov.dataMovimentacao)}`);
+                            alert(`Quantidade insuficiente para ${mov.produto} (Lote: ${mov.lote}) do cliente ${mov.cliente} na data ${formatarData(mov.dataMovimentacao)}`);
                         } else {
                             // Movimentação válida
                             movimentacoesValidas.push(mov);
@@ -159,7 +167,7 @@
                 movimentacoes = movimentacoesValidas;
             }
 
-            // Adicionar dados ao formulário
+            // Adicionar dados ao formulário de movimentação
             $('#dataForm').on('submit', function(e) {
                 e.preventDefault();
                 
@@ -217,13 +225,73 @@
                 $('#dataVencimento').val(umAnoDepois.toISOString().split('T')[0]);
             });
 
+            // Adicionar/editar produto no estoque diretamente
+            $('#estoqueForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                const dataFabricacao = $('#estoqueFabricacao').val();
+                const dataVencimento = $('#estoqueVencimento').val();
+                
+                if (new Date(dataVencimento) < new Date(dataFabricacao)) {
+                    alert('A data de vencimento não pode ser anterior à data de fabricação!');
+                    return;
+                }
+                
+                const cliente = $('#estoqueCliente').val();
+                const produto = $('#estoqueProduto').val();
+                const lote = $('#estoqueLote').val();
+                const quantidade = parseInt($('#estoqueQuantidade').val());
+                const fabricacao = dataFabricacao;
+                const vencimento = dataVencimento;
+                
+                if (editandoItemId === null) {
+                    // Adicionar novo produto
+                    const novoProduto = {
+                        id: Date.now(),
+                        cliente: cliente,
+                        produto: produto,
+                        lote: lote,
+                        dataFabricacao: fabricacao,
+                        dataVencimento: vencimento,
+                        quantidade: quantidade,
+                        ultimaMovimentacao: new Date().toISOString().split('T')[0]
+                    };
+                    estoque.push(novoProduto);
+                } else {
+                    // Editar produto existente
+                    const index = estoque.findIndex(item => item.id === editandoItemId);
+                    if (index !== -1) {
+                        estoque[index].cliente = cliente;
+                        estoque[index].produto = produto;
+                        estoque[index].lote = lote;
+                        estoque[index].dataFabricacao = fabricacao;
+                        estoque[index].dataVencimento = vencimento;
+                        estoque[index].quantidade = quantidade;
+                        estoque[index].ultimaMovimentacao = new Date().toISOString().split('T')[0];
+                    }
+                    editandoItemId = null;
+                    $('#cancelarEdicao').hide();
+                }
+                
+                salvarDados();
+                atualizarTabelaEstoque();
+                $('#estoqueForm')[0].reset();
+            });
+
+            // Cancelar edição
+            $('#cancelarEdicao').on('click', function() {
+                editandoItemId = null;
+                $(this).hide();
+                $('#estoqueForm')[0].reset();
+            });
+
             // Função para renderizar a tabela de movimentações
             function renderizarTabelaMovimentacoes(dadosFiltrados) {
                 const tbody = $('#dataTableBody');
                 tbody.empty();
 
                 if (dadosFiltrados.length === 0) {
-                    tbody.append('<tr><td colspan="7" class="text-center">Nenhuma movimentação encontrada</td></tr>');
+                    tbody.append('<tr><td colspan="8" class="text-center">Nenhuma movimentação encontrada</td></tr>');
                     return;
                 }
 
@@ -235,6 +303,7 @@
                         <tr class="${tipoClasse}">
                             <td>${formatarData(dado.dataMovimentacao)}</td>
                             <td><strong>${tipoTexto}</strong></td>
+                            <td>${dado.cliente}</td>
                             <td>${dado.produto}</td>
                             <td>${dado.qtde}</td>
                             <td>${dado.lote}</td>
@@ -261,6 +330,68 @@
                     salvarDados();
                     aplicarFiltros();
                     atualizarTabelaEstoque();
+                });
+            }
+
+            // Função para atualizar a tabela de estoque
+            function atualizarTabelaEstoque() {
+                const tbody = $('#estoqueTableBody');
+                const info = $('#estoqueInfo');
+                tbody.empty();
+
+                if (estoque.length === 0) {
+                    info.show();
+                    return;
+                }
+
+                info.hide();
+                estoque.forEach(item => {
+                    const statusVenc = getStatusVencimento(item.dataVencimento);
+                    const statusClasse = statusVenc.classe;
+                    const estoqueZeroClasse = item.quantidade === 0 ? 'estoque-zero' : '';
+                    const finalClasse = statusClasse ? statusClasse : estoqueZeroClasse;
+                    
+                    const row = `
+                        <tr class="${finalClasse}">
+                            <td>${item.cliente}</td>
+                            <td>${item.produto}</td>
+                            <td>${item.lote}</td>
+                            <td>${formatarData(item.dataFabricacao)}</td>
+                            <td>${formatarData(item.dataVencimento)}</td>
+                            <td><strong>${item.quantidade}</strong></td>
+                            <td>${statusVenc.status}</td>
+                            <td>
+                                <button class="edit-btn btn-sm" data-id="${item.id}">Editar</button>
+                                <button class="delete-btn btn-sm" data-id="${item.id}">Excluir</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.append(row);
+                });
+
+                // Adicionar eventos de edição e exclusão para estoque
+                $('.edit-btn').on('click', function() {
+                    const id = parseInt($(this).data('id'));
+                    const item = estoque.find(item => item.id === id);
+                    if (item) {
+                        $('#estoqueCliente').val(item.cliente);
+                        $('#estoqueProduto').val(item.produto);
+                        $('#estoqueLote').val(item.lote);
+                        $('#estoqueQuantidade').val(item.quantidade);
+                        $('#estoqueFabricacao').val(item.dataFabricacao);
+                        $('#estoqueVencimento').val(item.dataVencimento);
+                        editandoItemId = id;
+                        $('#cancelarEdicao').show();
+                    }
+                });
+
+                $('.delete-btn').on('click', function() {
+                    const id = parseInt($(this).data('id'));
+                    if (confirm('Tem certeza que deseja excluir este produto do estoque?')) {
+                        estoque = estoque.filter(item => item.id !== id);
+                        salvarDados();
+                        atualizarTabelaEstoque();
+                    }
                 });
             }
 
@@ -376,6 +507,7 @@
                 const wsData = estoque.map(item => {
                     const statusVenc = getStatusVencimento(item.dataVencimento);
                     return {
+                        'CLIENTE': item.cliente,
                         'PRODUTO': item.produto,
                         'LOTE': item.lote,
                         'DATA FABRICAÇÃO': formatarData(item.dataFabricacao),
@@ -390,6 +522,7 @@
                 XLSX.utils.book_append_sheet(wb, ws, "Estoque");
 
                 const colWidths = [
+                    {wch: 20}, // CLIENTE
                     {wch: 25}, // PRODUTO
                     {wch: 15}, // LOTE
                     {wch: 15}, // DATA FABRICAÇÃO
@@ -411,9 +544,11 @@
             const hoje = new Date().toISOString().split('T')[0];
             $('#dataMovimentacao').val(hoje);
             $('#dataFabricacao').val(hoje);
+            $('#estoqueFabricacao').val(hoje);
             
             // Definir data de vencimento com 1 ano a partir de hoje como padrão
             const umAnoDepois = new Date();
             umAnoDepois.setFullYear(umAnoDepois.getFullYear() + 1);
             $('#dataVencimento').val(umAnoDepois.toISOString().split('T')[0]);
+            $('#estoqueVencimento').val(umAnoDepois.toISOString().split('T')[0]);
         });
