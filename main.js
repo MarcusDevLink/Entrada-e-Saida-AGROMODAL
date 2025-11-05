@@ -1,4 +1,4 @@
- $(document).ready(function() {
+$(document).ready(function() {
             let movimentacoes = [];
             let estoque = [];
             let editandoItemId = null;
@@ -178,7 +178,7 @@
                 movimentacoes.push(novoDado);
                 salvarDados();
                 aplicarFiltros();
-                atualizarTabelaEstoque();
+                atualizarTabelasEstoque();
                 $('#dataForm')[0].reset();
                 $('#tipoMovimentacao').val('');
                 
@@ -240,7 +240,7 @@
                 }
                 
                 salvarDados();
-                atualizarTabelaEstoque();
+                atualizarTabelasEstoque();
                 $('#estoqueForm')[0].reset();
             });
 
@@ -332,14 +332,14 @@
                     
                     salvarDados();
                     aplicarFiltros();
-                    atualizarTabelaEstoque();
+                    atualizarTabelasEstoque();
                 });
             }
 
-            // Função para atualizar a tabela de estoque
-            function atualizarTabelaEstoque() {
-                const tbody = $('#estoqueTableBody');
-                const info = $('#estoqueInfo');
+            // Função para atualizar estoque geral
+            function atualizarEstoqueGeral() {
+                const tbody = $('#estoqueGeralTableBody');
+                const info = $('#estoqueGeralInfo');
                 tbody.empty();
 
                 if (estoque.length === 0) {
@@ -348,28 +348,142 @@
                 }
 
                 info.hide();
+                
+                // Agrupar por produto
+                const estoqueAgrupado = {};
                 estoque.forEach(item => {
-                    const statusVenc = getStatusVencimento(item.dataVencimento);
-                    const statusClasse = statusVenc.classe;
-                    const estoqueZeroClasse = item.quantidade === 0 ? 'estoque-zero' : '';
-                    const finalClasse = statusClasse ? statusClasse : estoqueZeroClasse;
+                    const chave = `${item.produto}`;
+                    if (!estoqueAgrupado[chave]) {
+                        estoqueAgrupado[chave] = {
+                            produto: item.produto,
+                            totalQuantidade: 0,
+                            lotes: new Set(),
+                            datasVencimento: []
+                        };
+                    }
+                    estoqueAgrupado[chave].totalQuantidade += item.quantidade;
+                    estoqueAgrupado[chave].lotes.add(item.lote);
+                    estoqueAgrupado[chave].datasVencimento.push(item.dataVencimento);
+                });
+
+                Object.values(estoqueAgrupado).forEach(item => {
+                    // Calcular status médio baseado nas datas de vencimento
+                    let statusMedio = 'VÁLIDO';
+                    const hoje = new Date();
+                    
+                    for (const dataVenc of item.datasVencimento) {
+                        const vencimento = new Date(dataVenc);
+                        const diffDays = Math.ceil((vencimento - hoje) / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays < 0) {
+                            statusMedio = 'VENCIDO';
+                            break;
+                        } else if (diffDays <= 30) {
+                            statusMedio = 'VENCE EM BREVE';
+                        }
+                    }
+                    
+                    const statusClasse = statusMedio === 'VENCIDO' ? 'vencimento-vencido' : 
+                                       statusMedio === 'VENCE EM BREVE' ? 'vencimento-proximo' : '';
                     
                     const row = `
-                        <tr class="${finalClasse}">
-                            <td>${item.cliente}</td>
+                        <tr class="${statusClasse}">
                             <td>${item.produto}</td>
-                            <td>${item.lote}</td>
-                            <td>${formatarData(item.dataFabricacao)}</td>
-                            <td>${formatarData(item.dataVencimento)}</td>
-                            <td><strong>${item.quantidade}</strong></td>
-                            <td>${statusVenc.status}</td>
-                            <td>
-                                <button class="edit-btn btn-sm" data-id="${item.id}">Editar</button>
-                                <button class="delete-btn btn-sm" data-id="${item.id}">Excluir</button>
-                            </td>
+                            <td>${item.lotes.size} lote(s)</td>
+                            <td><strong>${item.totalQuantidade}</strong></td>
+                            <td>${statusMedio}</td>
                         </tr>
                     `;
                     tbody.append(row);
+                });
+            }
+
+            // Função para atualizar estoque por cliente
+            function atualizarEstoquePorCliente() {
+                const tabsContainer = $('#clienteTabs');
+                const contentContainer = $('#clienteTabContent');
+                tabsContainer.empty();
+                contentContainer.empty();
+
+                if (estoque.length === 0) {
+                    contentContainer.append('<div class="alert alert-info p-3 text-center">Nenhum cliente com estoque cadastrado.</div>');
+                    return;
+                }
+
+                // Obter lista única de clientes
+                const clientes = [...new Set(estoque.map(item => item.cliente))];
+                
+                clientes.forEach((cliente, index) => {
+                    const activeClass = index === 0 ? 'active' : '';
+                    const activeAria = index === 0 ? 'true' : 'false';
+                    
+                    // Adicionar tab
+                    tabsContainer.append(`
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link ${activeClass}" id="cliente-${index}-tab" 
+                                    data-bs-toggle="tab" data-bs-target="#cliente-${index}" 
+                                    type="button" role="tab" aria-selected="${activeAria}">
+                                <span class="cliente-badge">${cliente}</span>
+                            </button>
+                        </li>
+                    `);
+                    
+                    // Adicionar conteúdo do tab
+                    const estoqueCliente = estoque.filter(item => item.cliente === cliente);
+                    let tableRows = '';
+                    
+                    estoqueCliente.forEach(item => {
+                        const statusVenc = getStatusVencimento(item.dataVencimento);
+                        const statusClasse = statusVenc.classe;
+                        const estoqueZeroClasse = item.quantidade === 0 ? 'estoque-zero' : '';
+                        const finalClasse = statusClasse ? statusClasse : estoqueZeroClasse;
+                        
+                        tableRows += `
+                            <tr class="${finalClasse}">
+                                <td>${item.produto}</td>
+                                <td>${item.lote}</td>
+                                <td>${formatarData(item.dataFabricacao)}</td>
+                                <td>${formatarData(item.dataVencimento)}</td>
+                                <td><strong>${item.quantidade}</strong></td>
+                                <td>${statusVenc.status}</td>
+                                <td>
+                                    <button class="edit-btn btn-sm" data-id="${item.id}">Editar</button>
+                                    <button class="delete-btn btn-sm" data-id="${item.id}">Excluir</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    contentContainer.append(`
+                        <div class="tab-pane fade ${activeClass} show" id="cliente-${index}" role="tabpanel">
+                            <div class="card">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Estoque - ${cliente}</h6>
+                                        <button class="btn btn-warning btn-sm export-cliente-btn" data-cliente="${cliente}">Exportar</button>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>PRODUTO</th>
+                                                    <th>LOTE</th>
+                                                    <th>FABRICAÇÃO</th>
+                                                    <th>VENCIMENTO</th>
+                                                    <th>QTDE</th>
+                                                    <th>STATUS</th>
+                                                    <th>AÇÕES</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${tableRows}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
                 });
 
                 // Adicionar eventos de edição e exclusão para estoque
@@ -393,9 +507,56 @@
                     if (confirm('Tem certeza que deseja excluir este produto do estoque?')) {
                         estoque = estoque.filter(item => item.id !== id);
                         salvarDados();
-                        atualizarTabelaEstoque();
+                        atualizarTabelasEstoque();
                     }
                 });
+
+                // Adicionar eventos de exportação por cliente
+                $('.export-cliente-btn').on('click', function() {
+                    const clienteNome = $(this).data('cliente');
+                    const estoqueCliente = estoque.filter(item => item.cliente === clienteNome);
+                    
+                    if (estoqueCliente.length === 0) {
+                        alert('Nenhum dado de estoque para este cliente!');
+                        return;
+                    }
+
+                    const wsData = estoqueCliente.map(item => {
+                        const statusVenc = getStatusVencimento(item.dataVencimento);
+                        return {
+                            'CLIENTE': item.cliente,
+                            'PRODUTO': item.produto,
+                            'LOTE': item.lote,
+                            'DATA FABRICAÇÃO': formatarData(item.dataFabricacao),
+                            'DATA VENCIMENTO': formatarData(item.dataVencimento),
+                            'QUANTIDADE TOTAL': item.quantidade,
+                            'STATUS VALIDADE': statusVenc.status
+                        };
+                    });
+
+                    const ws = XLSX.utils.json_to_sheet(wsData);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, `Estoque_${clienteNome.replace(/\s+/g, '_')}`);
+
+                    const colWidths = [
+                        {wch: 20}, // CLIENTE
+                        {wch: 25}, // PRODUTO
+                        {wch: 15}, // LOTE
+                        {wch: 15}, // DATA FABRICAÇÃO
+                        {wch: 15}, // DATA VENCIMENTO
+                        {wch: 18}, // QUANTIDADE TOTAL
+                        {wch: 20}  // STATUS VALIDADE
+                    ];
+                    ws['!cols'] = colWidths;
+
+                    XLSX.writeFile(wb, `estoque_${clienteNome.replace(/\s+/g, '_')}.xlsx`);
+                });
+            }
+
+            // Função para atualizar todas as tabelas de estoque
+            function atualizarTabelasEstoque() {
+                atualizarEstoqueGeral();
+                atualizarEstoquePorCliente();
             }
 
             // Função para aplicar filtros
@@ -500,48 +661,74 @@
                 XLSX.writeFile(wb, "movimentacoes_transporte.xlsx");
             });
 
-            // Exportar estoque para Excel
-            $('#exportEstoqueBtn').on('click', function() {
+            // Exportar estoque geral para Excel
+            $('#exportEstoqueGeralBtn').on('click', function() {
                 if (estoque.length === 0) {
-                    alert('Nenhum dado de estoque para exportar!');
+                    alert('Nenhum dado de estoque geral para exportar!');
                     return;
                 }
 
-                const wsData = estoque.map(item => {
-                    const statusVenc = getStatusVencimento(item.dataVencimento);
+                // Agrupar por produto para o estoque geral
+                const estoqueAgrupado = {};
+                estoque.forEach(item => {
+                    const chave = `${item.produto}`;
+                    if (!estoqueAgrupado[chave]) {
+                        estoqueAgrupado[chave] = {
+                            produto: item.produto,
+                            totalQuantidade: 0,
+                            lotes: new Set(),
+                            datasVencimento: []
+                        };
+                    }
+                    estoqueAgrupado[chave].totalQuantidade += item.quantidade;
+                    estoqueAgrupado[chave].lotes.add(item.lote);
+                    estoqueAgrupado[chave].datasVencimento.push(item.dataVencimento);
+                });
+
+                const wsData = Object.values(estoqueAgrupado).map(item => {
+                    // Calcular status médio
+                    let statusMedio = 'VÁLIDO';
+                    const hoje = new Date();
+                    
+                    for (const dataVenc of item.datasVencimento) {
+                        const vencimento = new Date(dataVenc);
+                        const diffDays = Math.ceil((vencimento - hoje) / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays < 0) {
+                            statusMedio = 'VENCIDO';
+                            break;
+                        } else if (diffDays <= 30) {
+                            statusMedio = 'VENCE EM BREVE';
+                        }
+                    }
+                    
                     return {
-                        'CLIENTE': item.cliente,
                         'PRODUTO': item.produto,
-                        'LOTE': item.lote,
-                        'DATA FABRICAÇÃO': formatarData(item.dataFabricacao),
-                        'DATA VENCIMENTO': formatarData(item.dataVencimento),
-                        'QUANTIDADE TOTAL': item.quantidade,
-                        'STATUS VALIDADE': statusVenc.status
+                        'LOTE TOTAL': `${item.lotes.size} lote(s)`,
+                        'QUANTIDADE TOTAL': item.totalQuantidade,
+                        'STATUS MÉDIO': statusMedio
                     };
                 });
 
                 const ws = XLSX.utils.json_to_sheet(wsData);
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Estoque");
+                XLSX.utils.book_append_sheet(wb, ws, "Estoque_Geral");
 
                 const colWidths = [
-                    {wch: 20}, // CLIENTE
                     {wch: 25}, // PRODUTO
-                    {wch: 15}, // LOTE
-                    {wch: 15}, // DATA FABRICAÇÃO
-                    {wch: 15}, // DATA VENCIMENTO
+                    {wch: 15}, // LOTE TOTAL
                     {wch: 18}, // QUANTIDADE TOTAL
-                    {wch: 20}  // STATUS VALIDADE
+                    {wch: 20}  // STATUS MÉDIO
                 ];
                 ws['!cols'] = colWidths;
 
-                XLSX.writeFile(wb, "estoque_transporte.xlsx");
+                XLSX.writeFile(wb, "estoque_geral_transporte.xlsx");
             });
 
             // Carregar dados ao iniciar
             carregarDados();
             aplicarFiltros();
-            atualizarTabelaEstoque();
+            atualizarTabelasEstoque();
 
             // Atualizar data atual nos campos relevantes
             const hoje = new Date().toISOString().split('T')[0];
