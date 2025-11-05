@@ -1,4 +1,4 @@
- body {
+body {
             background: linear-gradient(135deg, #2c3e50 0%, #4a6491 100%);
             min-height: 100vh;
             padding: 15px;
@@ -50,6 +50,16 @@
         .btn-info:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+            border: none;
+            padding: 8px 16px;
+            font-weight: 600;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(149, 165, 166, 0.4);
         }
         .form-control {
             border-radius: 10px;
@@ -274,4 +284,33 @@
             .observacao-cell {
                 max-width: 100px;
             }
+        }
+        .cliente-badge {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .estoque-geral-header {
+            background: linear-gradient(45deg, #27ae60, #219653);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .estoque-cliente-header {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .nav-pills .nav-link.active {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+        .nav-pills .nav-link {
+            color: #2c3e50;
+            font-weight: 600;
         }
