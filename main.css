@@ -264,3 +264,14 @@
             color: #2c3e50;
             font-weight: 600;
         }
+        .observacao-cell {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .observacao-cell {
+                max-width: 100px;
+            }
+        }
