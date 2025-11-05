@@ -1,4 +1,4 @@
-$(document).ready(function() {
+ $(document).ready(function() {
             let movimentacoes = [];
             let estoque = [];
             let editandoItemId = null;
@@ -57,7 +57,8 @@ $(document).ready(function() {
             }
 
             // Mostrar alerta de produto não encontrado
-            function mostrarAlertaProdutoNaoEncontrado(produto, lote) {
+            function mostrarAlertaProdutoNaoEncontrado(cliente, produto, lote) {
+                $('#clienteAlerta').text(cliente);
                 $('#produtoAlerta').text(produto);
                 $('#loteAlerta').text(lote);
                 $('#produtoNaoEncontradoAlert').addClass('show');
@@ -82,7 +83,7 @@ $(document).ready(function() {
                 
                 if (quantidade <= 0) return;
 
-                // Procurar produto e lote no estoque (considerando cliente também)
+                // Procurar produto, lote e cliente no estoque
                 const indexEstoque = estoque.findIndex(item => 
                     item.produto === produto && 
                     item.lote === lote && 
@@ -110,7 +111,7 @@ $(document).ready(function() {
                 } else if (tipoMovimentacao === 'saida') {
                     if (indexEstoque === -1) {
                         // Produto não encontrado no estoque - mostrar alerta e NÃO registrar
-                        mostrarAlertaProdutoNaoEncontrado(produto, lote);
+                        mostrarAlertaProdutoNaoEncontrado(cliente, produto, lote);
                         return false; // Indica que a operação falhou
                     } else {
                         // Verificar se há quantidade suficiente
@@ -122,49 +123,13 @@ $(document).ready(function() {
                         estoque[indexEstoque].quantidade -= quantidade;
                         estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
                         
-                        // Remover do estoque se quantidade for 0 (não permitir negativo)
+                        // Remover do estoque se quantidade for 0
                         if (estoque[indexEstoque].quantidade === 0) {
                             estoque.splice(indexEstoque, 1);
                         }
                     }
                 }
                 return true; // Indica que a operação foi bem-sucedida
-            }
-
-            // Processar todas as movimentações para reconstruir o estoque
-            function reconstruirEstoque() {
-                estoque = [];
-                let movimentacoesValidas = [];
-                
-                movimentacoes.forEach(mov => {
-                    // Para saídas, verificar se o produto existe no estoque acumulado até aquele ponto
-                    if (mov.tipoMovimentacao === 'saida') {
-                        const indexEstoque = estoque.findIndex(item => 
-                            item.produto === mov.produto && 
-                            item.lote === mov.lote && 
-                            item.cliente === mov.cliente
-                        );
-                        
-                        if (indexEstoque === -1) {
-                            // Produto não encontrado - ignorar esta movimentação
-                            mostrarAlertaProdutoNaoEncontrado(mov.produto, mov.lote);
-                        } else if (estoque[indexEstoque].quantidade < parseInt(mov.qtde)) {
-                            // Quantidade insuficiente - ignorar esta movimentação
-                            alert(`Quantidade insuficiente para ${mov.produto} (Lote: ${mov.lote}) do cliente ${mov.cliente} na data ${formatarData(mov.dataMovimentacao)}`);
-                        } else {
-                            // Movimentação válida
-                            movimentacoesValidas.push(mov);
-                            atualizarEstoque(mov);
-                        }
-                    } else {
-                        // Entrada sempre é válida
-                        movimentacoesValidas.push(mov);
-                        atualizarEstoque(mov);
-                    }
-                });
-                
-                // Atualizar array de movimentações apenas com as válidas
-                movimentacoes = movimentacoesValidas;
             }
 
             // Adicionar dados ao formulário de movimentação
@@ -206,6 +171,7 @@ $(document).ready(function() {
                         return; // Não adicionar ao array de movimentações se falhou
                     }
                 } else {
+                    // Para entrada, sempre atualiza o estoque
                     atualizarEstoque(novoDado);
                 }
 
@@ -291,13 +257,14 @@ $(document).ready(function() {
                 tbody.empty();
 
                 if (dadosFiltrados.length === 0) {
-                    tbody.append('<tr><td colspan="8" class="text-center">Nenhuma movimentação encontrada</td></tr>');
+                    tbody.append('<tr><td colspan="9" class="text-center">Nenhuma movimentação encontrada</td></tr>');
                     return;
                 }
 
                 dadosFiltrados.forEach((dado, index) => {
                     const tipoClasse = dado.tipoMovimentacao === 'entrada' ? 'tipo-entrada' : 'tipo-saida';
                     const tipoTexto = dado.tipoMovimentacao === 'entrada' ? 'ENTRADA' : 'SAÍDA';
+                    const observacoes = dado.observacoes || '';
                     
                     const row = `
                         <tr class="${tipoClasse}">
@@ -308,6 +275,7 @@ $(document).ready(function() {
                             <td>${dado.qtde}</td>
                             <td>${dado.lote}</td>
                             <td>${formatarData(dado.dataVencimento)}</td>
+                            <td class="observacao-cell" title="${observacoes}">${observacoes}</td>
                             <td>
                                 <button class="delete-btn btn-sm" data-index="${movimentacoes.indexOf(dado)}">Excluir</button>
                             </td>
@@ -324,8 +292,43 @@ $(document).ready(function() {
                     // Remover do array
                     movimentacoes.splice(originalIndex, 1);
                     
-                    // Reconstruir estoque completo
-                    reconstruirEstoque();
+                    // Atualizar estoque de acordo com a exclusão
+                    if (movimentacaoRemovida.tipoMovimentacao === 'entrada') {
+                        // Remover a quantidade que foi adicionada
+                        const indexEstoque = estoque.findIndex(item => 
+                            item.produto === movimentacaoRemovida.produto && 
+                            item.lote === movimentacaoRemovida.lote && 
+                            item.cliente === movimentacaoRemovida.cliente
+                        );
+                        if (indexEstoque !== -1) {
+                            estoque[indexEstoque].quantidade -= parseInt(movimentacaoRemovida.qtde);
+                            if (estoque[indexEstoque].quantidade <= 0) {
+                                estoque.splice(indexEstoque, 1);
+                            }
+                        }
+                    } else if (movimentacaoRemovida.tipoMovimentacao === 'saida') {
+                        // Adicionar de volta a quantidade que foi removida
+                        const indexEstoque = estoque.findIndex(item => 
+                            item.produto === movimentacaoRemovida.produto && 
+                            item.lote === movimentacaoRemovida.lote && 
+                            item.cliente === movimentacaoRemovida.cliente
+                        );
+                        if (indexEstoque !== -1) {
+                            estoque[indexEstoque].quantidade += parseInt(movimentacaoRemovida.qtde);
+                        } else {
+                            // Se não existir no estoque, criar novo registro
+                            estoque.push({
+                                id: Date.now(),
+                                cliente: movimentacaoRemovida.cliente,
+                                produto: movimentacaoRemovida.produto,
+                                lote: movimentacaoRemovida.lote,
+                                dataFabricacao: movimentacaoRemovida.dataFabricacao,
+                                dataVencimento: movimentacaoRemovida.dataVencimento,
+                                quantidade: parseInt(movimentacaoRemovida.qtde),
+                                ultimaMovimentacao: new Date().toISOString().split('T')[0]
+                            });
+                        }
+                    }
                     
                     salvarDados();
                     aplicarFiltros();
