@@ -10,7 +10,8 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- SheetJS (xlsx) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <link rel="stylesheet" href="main.css">  
+  
+    <link rel="stylesheet" href="main.css"> 
   
 </head>
 <body>
@@ -22,7 +23,7 @@
 
         <!-- Alerta de produto não encontrado -->
         <div id="produtoNaoEncontradoAlert" class="alert alert-warning-custom">
-            <strong>⚠️ Atenção!</strong> Produto <span id="produtoAlerta"></span> (Lote: <span id="loteAlerta"></span>) não encontrado no estoque. Verifique antes de registrar a saída!
+            <strong>⚠️ Atenção!</strong> Produto <span id="produtoAlerta"></span> (Lote: <span id="loteAlerta"></span>) do cliente <span id="clienteAlerta"></span> não encontrado no estoque. Verifique antes de registrar a saída!
         </div>
 
         <ul class="nav nav-tabs justify-content-center mb-3" id="myTab" role="tablist">
@@ -184,6 +185,7 @@
                                                     <th>QTDE</th>
                                                     <th>LOTE</th>
                                                     <th>VENCIMENTO</th>
+                                                    <th>OBSERVAÇÕES</th>
                                                     <th>AÇÕES</th>
                                                 </tr>
                                             </thead>
@@ -282,3 +284,4 @@
     <script src="main.js"></script>
 </body>
 </html>
+
