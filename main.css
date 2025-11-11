@@ -1,4 +1,4 @@
-body {
+  body {
             background: linear-gradient(135deg, #2c3e50 0%, #4a6491 100%);
             min-height: 100vh;
             padding: 15px;
@@ -313,4 +313,51 @@ body {
         .nav-pills .nav-link {
             color: #2c3e50;
             font-weight: 600;
+        }
+        .export-cliente-btn {
+            margin-left: 10px;
+        }
+        .produto-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .remove-produto-btn {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .remove-produto-btn:hover {
+            background: linear-gradient(45deg, #c0392b, #a93226);
+        }
+        .add-produto-btn {
+            background: linear-gradient(45deg, #27ae60, #219653);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .add-produto-btn:hover {
+            background: linear-gradient(45deg, #219653, #1e8449);
+        }
+        .produto-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .produto-title {
+            font-weight: 600;
+            color: #2c3e50;
         }
