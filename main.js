@@ -71,77 +71,182 @@ $(document).ready(function() {
             function atualizarEstoque(movimentacao) {
                 const { 
                     cliente,
-                    produto, 
-                    lote, 
-                    qtde, 
-                    tipoMovimentacao, 
-                    dataMovimentacao,
-                    dataFabricacao,
-                    dataVencimento
+                    produtos,
+                    tipoMovimentacao,
+                    dataMovimentacao
                 } = movimentacao;
-                const quantidade = parseInt(qtde) || 0;
                 
-                if (quantidade <= 0) return;
+                let todasSucesso = true;
 
-                // Procurar produto, lote e cliente no estoque
-                const indexEstoque = estoque.findIndex(item => 
-                    item.produto === produto && 
-                    item.lote === lote && 
-                    item.cliente === cliente
-                );
+                produtos.forEach(produto => {
+                    const { 
+                        produto: nomeProduto, 
+                        lote, 
+                        qtde, 
+                        qtdePallets,
+                        pesoNf,
+                        dataFabricacao,
+                        dataVencimento
+                    } = produto;
+                    const quantidade = parseInt(qtde) || 0;
+                    
+                    if (quantidade <= 0) return;
 
-                if (tipoMovimentacao === 'entrada') {
-                    if (indexEstoque === -1) {
-                        // Novo produto/lote/cliente
-                        estoque.push({
-                            id: Date.now(), // ID único para edição
-                            cliente: cliente,
-                            produto: produto,
-                            lote: lote,
-                            dataFabricacao: dataFabricacao,
-                            dataVencimento: dataVencimento,
-                            quantidade: quantidade,
-                            ultimaMovimentacao: dataMovimentacao
-                        });
-                    } else {
-                        // Atualizar quantidade existente
-                        estoque[indexEstoque].quantidade += quantidade;
-                        estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
-                    }
-                } else if (tipoMovimentacao === 'saida') {
-                    if (indexEstoque === -1) {
-                        // Produto não encontrado no estoque - mostrar alerta e NÃO registrar
-                        mostrarAlertaProdutoNaoEncontrado(cliente, produto, lote);
-                        return false; // Indica que a operação falhou
-                    } else {
-                        // Verificar se há quantidade suficiente
-                        if (estoque[indexEstoque].quantidade < quantidade) {
-                            alert(`Quantidade insuficiente no estoque para ${produto} (Lote: ${lote}) do cliente ${cliente}!\nEstoque atual: ${estoque[indexEstoque].quantidade}, Tentativa de saída: ${quantidade}`);
-                            return false;
+                    // Procurar produto, lote e cliente no estoque
+                    const indexEstoque = estoque.findIndex(item => 
+                        item.produto === nomeProduto && 
+                        item.lote === lote && 
+                        item.cliente === cliente
+                    );
+
+                    if (tipoMovimentacao === 'entrada') {
+                        if (indexEstoque === -1) {
+                            // Novo produto/lote/cliente
+                            estoque.push({
+                                id: Date.now() + Math.random(), // ID único para edição
+                                cliente: cliente,
+                                produto: nomeProduto,
+                                lote: lote,
+                                dataFabricacao: dataFabricacao,
+                                dataVencimento: dataVencimento,
+                                quantidade: quantidade,
+                                ultimaMovimentacao: dataMovimentacao
+                            });
+                        } else {
+                            // Atualizar quantidade existente
+                            estoque[indexEstoque].quantidade += quantidade;
+                            estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
                         }
-                        
-                        estoque[indexEstoque].quantidade -= quantidade;
-                        estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
-                        
-                        // Remover do estoque se quantidade for 0
-                        if (estoque[indexEstoque].quantidade === 0) {
-                            estoque.splice(indexEstoque, 1);
+                    } else if (tipoMovimentacao === 'saida') {
+                        if (indexEstoque === -1) {
+                            // Produto não encontrado no estoque - mostrar alerta e NÃO registrar
+                            mostrarAlertaProdutoNaoEncontrado(cliente, nomeProduto, lote);
+                            todasSucesso = false;
+                        } else {
+                            // Verificar se há quantidade suficiente
+                            if (estoque[indexEstoque].quantidade < quantidade) {
+                                alert(`Quantidade insuficiente no estoque para ${nomeProduto} (Lote: ${lote}) do cliente ${cliente}!\nEstoque atual: ${estoque[indexEstoque].quantidade}, Tentativa de saída: ${quantidade}`);
+                                todasSucesso = false;
+                            } else {
+                                estoque[indexEstoque].quantidade -= quantidade;
+                                estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
+                                
+                                // Remover do estoque se quantidade for 0
+                                if (estoque[indexEstoque].quantidade === 0) {
+                                    estoque.splice(indexEstoque, 1);
+                                }
+                            }
                         }
                     }
-                }
-                return true; // Indica que a operação foi bem-sucedida
+                });
+                
+                return todasSucesso;
             }
+
+            // Criar template de produto
+            function criarTemplateProduto(index) {
+                const hoje = new Date().toISOString().split('T')[0];
+                const umAnoDepois = new Date();
+                umAnoDepois.setFullYear(umAnoDepois.getFullYear() + 1);
+                const vencimentoPadrao = umAnoDepois.toISOString().split('T')[0];
+                
+                return `
+                    <div class="produto-item" data-index="${index}">
+                        <div class="produto-header">
+                            <div class="produto-title">Produto ${index + 1}</div>
+                            ${index > 0 ? '<button type="button" class="remove-produto-btn">Remover</button>' : ''}
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">PRODUTO *</label>
+                                <input type="text" class="form-control produto-nome" placeholder="Nome do Produto" required>
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label">QTDE *</label>
+                                <input type="number" class="form-control produto-qtde" placeholder="0" min="0" required>
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label">QTDE PALLETS</label>
+                                <input type="number" class="form-control produto-pallets" placeholder="0" min="0">
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label">PESO NF (KG)</label>
+                                <input type="number" class="form-control produto-peso" placeholder="0.00" min="0" step="0.01">
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label">LOTE *</label>
+                                <input type="text" class="form-control produto-lote" placeholder="Lote" required>
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label">FABRICAÇÃO *</label>
+                                <input type="date" class="form-control produto-fabricacao" value="${hoje}" required>
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label">VENCIMENTO *</label>
+                                <input type="date" class="form-control produto-vencimento" value="${vencimentoPadrao}" required>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Adicionar produto ao formulário
+            function adicionarProduto() {
+                const container = $('#produtosContainer');
+                const index = container.children('.produto-item').length;
+                container.append(criarTemplateProduto(index));
+                
+                // Adicionar evento de remoção
+                $('.remove-produto-btn').off('click').on('click', function() {
+                    $(this).closest('.produto-item').remove();
+                });
+            }
+
+            // Inicializar com um produto
+            adicionarProduto();
+
+            // Adicionar novo produto
+            $('#addProdutoBtn').on('click', adicionarProduto);
 
             // Adicionar dados ao formulário de movimentação
             $('#dataForm').on('submit', function(e) {
                 e.preventDefault();
                 
-                // Validar datas de fabricação e vencimento
-                const dataFabricacao = $('#dataFabricacao').val();
-                const dataVencimento = $('#dataVencimento').val();
+                const produtos = [];
+                let todosValidos = true;
                 
-                if (new Date(dataVencimento) < new Date(dataFabricacao)) {
-                    alert('A data de vencimento não pode ser anterior à data de fabricação!');
+                $('.produto-item').each(function() {
+                    const $item = $(this);
+                    const produto = {
+                        produto: $item.find('.produto-nome').val(),
+                        qtde: $item.find('.produto-qtde').val(),
+                        qtdePallets: $item.find('.produto-pallets').val() || '',
+                        pesoNf: $item.find('.produto-peso').val() || '',
+                        lote: $item.find('.produto-lote').val(),
+                        dataFabricacao: $item.find('.produto-fabricacao').val(),
+                        dataVencimento: $item.find('.produto-vencimento').val()
+                    };
+                    
+                    // Validar campos obrigatórios
+                    if (!produto.produto || !produto.qtde || !produto.lote || !produto.dataFabricacao || !produto.dataVencimento) {
+                        alert('Preencha todos os campos obrigatórios dos produtos!');
+                        todosValidos = false;
+                        return false;
+                    }
+                    
+                    // Validar datas
+                    if (new Date(produto.dataVencimento) < new Date(produto.dataFabricacao)) {
+                        alert('A data de vencimento não pode ser anterior à data de fabricação!');
+                        todosValidos = false;
+                        return false;
+                    }
+                    
+                    produtos.push(produto);
+                });
+                
+                if (!todosValidos) return;
+                if (produtos.length === 0) {
+                    alert('Adicione pelo menos um produto!');
                     return;
                 }
                 
@@ -151,18 +256,18 @@ $(document).ready(function() {
                     cte: $('#cte').val(),
                     nf: $('#nf').val(),
                     cliente: $('#cliente').val(),
-                    produto: $('#produto').val(),
-                    qtdePallets: $('#qtdePallets').val() || '',
-                    qtde: $('#qtde').val(),
-                    pesoNf: $('#pesoNf').val() || '',
-                    lote: $('#lote').val(),
-                    dataFabricacao: dataFabricacao,
-                    dataVencimento: dataVencimento,
+                    produtos: produtos,
                     motorista: $('#motorista').val(),
                     valorNf: $('#valorNf').val() || '',
                     destino: $('#destino').val(),
                     observacoes: $('#observacoes').val() || ''
                 };
+
+                // Validar campos obrigatórios principais
+                if (!novoDado.dataMovimentacao || !novoDado.tipoMovimentacao || !novoDado.nf || !novoDado.cliente) {
+                    alert('Preencha todos os campos obrigatórios!');
+                    return;
+                }
 
                 // Verificar se é saída e validar estoque
                 if (novoDado.tipoMovimentacao === 'saida') {
@@ -181,14 +286,15 @@ $(document).ready(function() {
                 atualizarTabelasEstoque();
                 $('#dataForm')[0].reset();
                 $('#tipoMovimentacao').val('');
+                $('#produtosContainer').empty();
+                adicionarProduto(); // Adicionar um produto vazio
                 
                 // Resetar datas para hoje
                 const hoje = new Date().toISOString().split('T')[0];
                 $('#dataMovimentacao').val(hoje);
-                $('#dataFabricacao').val(hoje);
                 const umAnoDepois = new Date();
                 umAnoDepois.setFullYear(umAnoDepois.getFullYear() + 1);
-                $('#dataVencimento').val(umAnoDepois.toISOString().split('T')[0]);
+                $('#valorNf').val('');
             });
 
             // Adicionar/editar produto no estoque diretamente
@@ -257,7 +363,7 @@ $(document).ready(function() {
                 tbody.empty();
 
                 if (dadosFiltrados.length === 0) {
-                    tbody.append('<tr><td colspan="9" class="text-center">Nenhuma movimentação encontrada</td></tr>');
+                    tbody.append('<tr><td colspan="8" class="text-center">Nenhuma movimentação encontrada</td></tr>');
                     return;
                 }
 
@@ -265,16 +371,17 @@ $(document).ready(function() {
                     const tipoClasse = dado.tipoMovimentacao === 'entrada' ? 'tipo-entrada' : 'tipo-saida';
                     const tipoTexto = dado.tipoMovimentacao === 'entrada' ? 'ENTRADA' : 'SAÍDA';
                     const observacoes = dado.observacoes || '';
+                    const totalQtde = dado.produtos.reduce((sum, p) => sum + parseInt(p.qtde || 0), 0);
+                    const produtosLista = dado.produtos.map(p => `${p.produto} (Lote: ${p.lote})`).join(', ');
                     
                     const row = `
                         <tr class="${tipoClasse}">
                             <td>${formatarData(dado.dataMovimentacao)}</td>
                             <td><strong>${tipoTexto}</strong></td>
+                            <td>${dado.nf}</td>
                             <td>${dado.cliente}</td>
-                            <td>${dado.produto}</td>
-                            <td>${dado.qtde}</td>
-                            <td>${dado.lote}</td>
-                            <td>${formatarData(dado.dataVencimento)}</td>
+                            <td class="observacao-cell" title="${produtosLista}">${produtosLista}</td>
+                            <td>${totalQtde}</td>
                             <td class="observacao-cell" title="${observacoes}">${observacoes}</td>
                             <td>
                                 <button class="delete-btn btn-sm" data-index="${movimentacoes.indexOf(dado)}">Excluir</button>
@@ -294,40 +401,44 @@ $(document).ready(function() {
                     
                     // Atualizar estoque de acordo com a exclusão
                     if (movimentacaoRemovida.tipoMovimentacao === 'entrada') {
-                        // Remover a quantidade que foi adicionada
-                        const indexEstoque = estoque.findIndex(item => 
-                            item.produto === movimentacaoRemovida.produto && 
-                            item.lote === movimentacaoRemovida.lote && 
-                            item.cliente === movimentacaoRemovida.cliente
-                        );
-                        if (indexEstoque !== -1) {
-                            estoque[indexEstoque].quantidade -= parseInt(movimentacaoRemovida.qtde);
-                            if (estoque[indexEstoque].quantidade <= 0) {
-                                estoque.splice(indexEstoque, 1);
+                        // Remover todas as quantidades que foram adicionadas
+                        movimentacaoRemovida.produtos.forEach(produto => {
+                            const indexEstoque = estoque.findIndex(item => 
+                                item.produto === produto.produto && 
+                                item.lote === produto.lote && 
+                                item.cliente === movimentacaoRemovida.cliente
+                            );
+                            if (indexEstoque !== -1) {
+                                estoque[indexEstoque].quantidade -= parseInt(produto.qtde);
+                                if (estoque[indexEstoque].quantidade <= 0) {
+                                    estoque.splice(indexEstoque, 1);
+                                }
                             }
-                        }
+                        });
                     } else if (movimentacaoRemovida.tipoMovimentacao === 'saida') {
-                        // Adicionar de volta a quantidade que foi removida
-                        const indexEstoque = estoque.findIndex(item => 
-                            item.produto === movimentacaoRemovida.produto && 
-                            item.lote === movimentacaoRemovida.lote && 
-                            item.cliente === movimentacaoRemovida.cliente
-                        );
-                        if (indexEstoque !== -1) {
-                            estoque[indexEstoque].quantidade += parseInt(movimentacaoRemovida.qtde);
-                        } else {
-                            // Se não existir no estoque, criar novo registro
-                            estoque.push({
-                                id: Date.now(),
-                                cliente: movimentacaoRemovida.cliente,
-                                produto: movimentacaoRemovida.produto,
-                                lote: movimentacaoRemovida.lote,
-                                dataFabricacao: movimentacaoRemovida.dataFabricacao,
-                                dataVencimento: movimentacaoRemovida.dataVencimento,
-                                quantidade: parseInt(movimentacaoRemovida.qtde),
-                                ultimaMovimentacao: new Date().toISOString().split('T')[0]
-                            });
-                        }
+                        // Adicionar de volta todas as quantidades que foram removidas
+                        movimentacaoRemovida.produtos.forEach(produto => {
+                            const indexEstoque = estoque.findIndex(item => 
+                                item.produto === produto.produto && 
+                                item.lote === produto.lote && 
+                                item.cliente === movimentacaoRemovida.cliente
+                            );
+                            if (indexEstoque !== -1) {
+                                estoque[indexEstoque].quantidade += parseInt(produto.qtde);
+                            } else {
+                                // Se não existir no estoque, criar novo registro
+                                estoque.push({
+                                    id: Date.now() + Math.random(),
+                                    cliente: movimentacaoRemovida.cliente,
+                                    produto: produto.produto,
+                                    lote: produto.lote,
+                                    dataFabricacao: produto.dataFabricacao,
+                                    dataVencimento: produto.dataVencimento,
+                                    quantidade: parseInt(produto.qtde),
+                                    ultimaMovimentacao: new Date().toISOString().split('T')[0]
+                                });
+                            }
+                        });
                     }
                     
                     salvarDados();
@@ -460,7 +571,7 @@ $(document).ready(function() {
                                 <div class="card-body p-3">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <h6 class="mb-0">Estoque - ${cliente}</h6>
-                                        <button class="btn btn-warning btn-sm export-cliente-btn" data-cliente="${cliente}">Exportar</button>
+                                        <button class="btn btn-warning btn-sm export-cliente-btn" data-cliente="${cliente}">Exportar Estoque Cliente</button>
                                     </div>
                                     <div class="table-responsive">
                                         <table class="table table-striped mb-0">
@@ -488,7 +599,7 @@ $(document).ready(function() {
 
                 // Adicionar eventos de edição e exclusão para estoque
                 $('.edit-btn').on('click', function() {
-                    const id = parseInt($(this).data('id'));
+                    const id = $(this).data('id');
                     const item = estoque.find(item => item.id === id);
                     if (item) {
                         $('#estoqueCliente').val(item.cliente);
@@ -503,7 +614,7 @@ $(document).ready(function() {
                 });
 
                 $('.delete-btn').on('click', function() {
-                    const id = parseInt($(this).data('id'));
+                    const id = $(this).data('id');
                     if (confirm('Tem certeza que deseja excluir este produto do estoque?')) {
                         estoque = estoque.filter(item => item.id !== id);
                         salvarDados();
@@ -561,6 +672,7 @@ $(document).ready(function() {
 
             // Função para aplicar filtros
             function aplicarFiltros() {
+                const filtroNf = $('#filterNf').val().toLowerCase();
                 const filtroDataInicio = $('#filterDataInicio').val();
                 const filtroDataFim = $('#filterDataFim').val();
                 const filtroCliente = $('#filterCliente').val().toLowerCase();
@@ -568,6 +680,9 @@ $(document).ready(function() {
                 const filtroTipo = $('#filterTipo').val();
 
                 const dadosFiltrados = movimentacoes.filter(dado => {
+                    // Filtro por NF
+                    const nfMatch = !filtroNf || dado.nf.toLowerCase().includes(filtroNf);
+                    
                     // Filtro por período
                     let dataMatch = true;
                     if (filtroDataInicio || filtroDataFim) {
@@ -583,10 +698,10 @@ $(document).ready(function() {
                     }
                     
                     const clienteMatch = !filtroCliente || dado.cliente.toLowerCase().includes(filtroCliente);
-                    const produtoMatch = !filtroProduto || dado.produto.toLowerCase().includes(filtroProduto);
+                    const produtoMatch = !filtroProduto || dado.produtos.some(p => p.produto.toLowerCase().includes(filtroProduto));
                     const tipoMatch = !filtroTipo || dado.tipoMovimentacao === filtroTipo;
                     
-                    return dataMatch && clienteMatch && produtoMatch && tipoMatch;
+                    return nfMatch && dataMatch && clienteMatch && produtoMatch && tipoMatch;
                 });
 
                 renderizarTabelaMovimentacoes(dadosFiltrados);
@@ -596,7 +711,7 @@ $(document).ready(function() {
             $('#applyFilter').on('click', aplicarFiltros);
             
             $('#clearFilter').on('click', function() {
-                $('#filterDataInicio, #filterDataFim, #filterCliente, #filterProduto').val('');
+                $('#filterNf, #filterDataInicio, #filterDataFim, #filterCliente, #filterProduto').val('');
                 $('#filterTipo').val('');
                 aplicarFiltros();
             });
@@ -615,24 +730,29 @@ $(document).ready(function() {
                     return;
                 }
 
-                const wsData = movimentacoes.map(dado => ({
-                    'DATA MOVIMENTAÇÃO': formatarData(dado.dataMovimentacao),
-                    'TIPO': dado.tipoMovimentacao === 'entrada' ? 'ENTRADA' : 'SAÍDA',
-                    'CT-e': dado.cte,
-                    'NF': dado.nf,
-                    'CLIENTE/FORNECEDOR': dado.cliente,
-                    'PRODUTO': dado.produto,
-                    'QTDE PALLETS': dado.qtdePallets,
-                    'QTDE': dado.qtde,
-                    'PESO NF': dado.pesoNf,
-                    'LOTE': dado.lote,
-                    'DATA FABRICAÇÃO': formatarData(dado.dataFabricacao),
-                    'DATA VENCIMENTO': formatarData(dado.dataVencimento),
-                    'MOTORISTA': dado.motorista,
-                    'VALOR NF': dado.valorNf ? `R$ ${formatarValor(dado.valorNf)}` : '',
-                    'DESTINO/LOCAL': dado.destino,
-                    'OBSERVAÇÕES': dado.observacoes
-                }));
+                const wsData = [];
+                movimentacoes.forEach(dado => {
+                    dado.produtos.forEach(produto => {
+                        wsData.push({
+                            'DATA MOVIMENTAÇÃO': formatarData(dado.dataMovimentacao),
+                            'TIPO': dado.tipoMovimentacao === 'entrada' ? 'ENTRADA' : 'SAÍDA',
+                            'CT-e': dado.cte,
+                            'NF': dado.nf,
+                            'CLIENTE/FORNECEDOR': dado.cliente,
+                            'PRODUTO': produto.produto,
+                            'QTDE PALLETS': produto.qtdePallets,
+                            'QTDE': produto.qtde,
+                            'PESO NF': produto.pesoNf,
+                            'LOTE': produto.lote,
+                            'DATA FABRICAÇÃO': formatarData(produto.dataFabricacao),
+                            'DATA VENCIMENTO': formatarData(produto.dataVencimento),
+                            'MOTORISTA': dado.motorista,
+                            'VALOR NF': dado.valorNf ? `R$ ${formatarValor(dado.valorNf)}` : '',
+                            'DESTINO/LOCAL': dado.destino,
+                            'OBSERVAÇÕES': dado.observacoes
+                        });
+                    });
+                });
 
                 const ws = XLSX.utils.json_to_sheet(wsData);
                 const wb = XLSX.utils.book_new();
@@ -733,12 +853,4 @@ $(document).ready(function() {
             // Atualizar data atual nos campos relevantes
             const hoje = new Date().toISOString().split('T')[0];
             $('#dataMovimentacao').val(hoje);
-            $('#dataFabricacao').val(hoje);
-            $('#estoqueFabricacao').val(hoje);
-            
-            // Definir data de vencimento com 1 ano a partir de hoje como padrão
-            const umAnoDepois = new Date();
-            umAnoDepois.setFullYear(umAnoDepois.getFullYear() + 1);
-            $('#dataVencimento').val(umAnoDepois.toISOString().split('T')[0]);
-            $('#estoqueVencimento').val(umAnoDepois.toISOString().split('T')[0]);
         });
