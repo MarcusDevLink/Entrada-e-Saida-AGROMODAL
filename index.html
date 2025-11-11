@@ -11,8 +11,8 @@
     <!-- SheetJS (xlsx) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- main.css -->
-    <link rel="stylesheet" href="main.css"> 
-  
+    <link rel="stylesheet" href="main.css">
+
 </head>
 <body>
     <div class="container-fluid">
@@ -72,50 +72,29 @@
                                             <input type="text" class="form-control" id="cliente" placeholder="Nome" required>
                                         </div>
                                         <div class="col-12 col-md-6">
-                                            <label for="produto" class="form-label">PRODUTO</label>
-                                            <input type="text" class="form-control" id="produto" placeholder="Nome do Produto" required>
-                                        </div>
-                                        <div class="col-12 col-md-6 col-lg-3">
-                                            <label for="qtdePallets" class="form-label">QTDE PALLETS</label>
-                                            <input type="number" class="form-control" id="qtdePallets" placeholder="0" min="0">
-                                        </div>
-                                        <div class="col-12 col-md-6 col-lg-3">
-                                            <label for="qtde" class="form-label">QTDE</label>
-                                            <input type="number" class="form-control" id="qtde" placeholder="0" min="0" required>
-                                        </div>
-                                        
-                                        <!-- Terceira linha -->
-                                        <div class="col-12 col-md-4 col-lg-2">
-                                            <label for="pesoNf" class="form-label">PESO NF (KG)</label>
-                                            <input type="number" class="form-control" id="pesoNf" placeholder="0.00" min="0" step="0.01">
-                                        </div>
-                                        <div class="col-12 col-md-4 col-lg-2">
-                                            <label for="lote" class="form-label">LOTE</label>
-                                            <input type="text" class="form-control" id="lote" placeholder="Lote" required>
-                                        </div>
-                                        <div class="col-12 col-md-4 col-lg-2">
-                                            <label for="dataFabricacao" class="form-label">FABRICAÇÃO</label>
-                                            <input type="date" class="form-control" id="dataFabricacao" required>
-                                        </div>
-                                        <div class="col-12 col-md-4 col-lg-2">
-                                            <label for="dataVencimento" class="form-label">VENCIMENTO</label>
-                                            <input type="date" class="form-control" id="dataVencimento" required>
-                                        </div>
-                                        <div class="col-12 col-md-4 col-lg-2">
                                             <label for="motorista" class="form-label">MOTORISTA</label>
                                             <input type="text" class="form-control" id="motorista" placeholder="Motorista">
                                         </div>
-                                        <div class="col-12 col-md-4 col-lg-2">
+                                        <div class="col-12 col-md-6 col-lg-3">
                                             <label for="valorNf" class="form-label">VALOR NF (R$)</label>
                                             <input type="number" class="form-control currency-input" id="valorNf" placeholder="0.00" min="0" step="0.01">
                                         </div>
-                                        
-                                        <!-- Quarta linha -->
-                                        <div class="col-12 col-md-6">
+                                        <div class="col-12 col-md-6 col-lg-3">
                                             <label for="destino" class="form-label">DESTINO/LOCAL</label>
                                             <input type="text" class="form-control" id="destino" placeholder="Local" required>
                                         </div>
-                                        <div class="col-12 col-md-6">
+                                        
+                                        <!-- Produtos Section -->
+                                        <div class="col-12">
+                                            <label class="form-label">Produtos</label>
+                                            <div id="produtosContainer">
+                                                <!-- Produtos serão adicionados aqui -->
+                                            </div>
+                                            <button type="button" id="addProdutoBtn" class="btn btn-success add-produto-btn">Adicionar Produto</button>
+                                        </div>
+                                        
+                                        <!-- Observações -->
+                                        <div class="col-12">
                                             <label for="observacoes" class="form-label">OBSERVAÇÕES</label>
                                             <textarea class="form-control" id="observacoes" rows="2" placeholder="Observações"></textarea>
                                         </div>
@@ -131,7 +110,11 @@
                         <!-- Filtro Section -->
                         <div class="filter-section mt-3">
                             <div class="row g-2">
-                                <div class="col-12 col-md-6 col-lg-3">
+                                <div class="col-12 col-md-4 col-lg-2">
+                                    <label class="form-label">NF</label>
+                                    <input type="text" class="form-control" id="filterNf" placeholder="Nota Fiscal">
+                                </div>
+                                <div class="col-12 col-md-4 col-lg-2">
                                     <label class="form-label">Período</label>
                                     <div class="date-range-filter">
                                         <div>
@@ -142,15 +125,15 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-12 col-md-6 col-lg-3">
-                                    <label class="form-label">Cliente/Fornecedor</label>
+                                <div class="col-12 col-md-4 col-lg-2">
+                                    <label class="form-label">Cliente</label>
                                     <input type="text" class="form-control" id="filterCliente" placeholder="Cliente">
                                 </div>
-                                <div class="col-12 col-md-6 col-lg-3">
+                                <div class="col-12 col-md-4 col-lg-2">
                                     <label class="form-label">Produto</label>
                                     <input type="text" class="form-control" id="filterProduto" placeholder="Produto">
                                 </div>
-                                <div class="col-12 col-md-6 col-lg-3">
+                                <div class="col-12 col-md-4 col-lg-2">
                                     <label class="form-label">Tipo</label>
                                     <select class="form-control" id="filterTipo">
                                         <option value="">Todos</option>
@@ -158,10 +141,10 @@
                                         <option value="saida">Saída</option>
                                     </select>
                                 </div>
-                                <div class="col-12">
+                                <div class="col-12 col-md-12 col-lg-2">
                                     <div class="d-flex gap-2 mt-2">
-                                        <button id="applyFilter" class="btn btn-primary w-100">Aplicar Filtros</button>
-                                        <button id="clearFilter" class="btn clear-filters">Limpar Tudo</button>
+                                        <button id="applyFilter" class="btn btn-primary w-100">Filtrar</button>
+                                        <button id="clearFilter" class="btn clear-filters">Limpar</button>
                                     </div>
                                 </div>
                             </div>
@@ -180,11 +163,10 @@
                                                 <tr>
                                                     <th>DATA</th>
                                                     <th>TIPO</th>
+                                                    <th>NF</th>
                                                     <th>CLIENTE</th>
-                                                    <th>PRODUTO</th>
-                                                    <th>QTDE</th>
-                                                    <th>LOTE</th>
-                                                    <th>VENCIMENTO</th>
+                                                    <th>PRODUTOS</th>
+                                                    <th>TOTAL QTDE</th>
                                                     <th>OBSERVAÇÕES</th>
                                                     <th>AÇÕES</th>
                                                 </tr>
