@@ -1,4 +1,4 @@
-$(document).ready(function() {
+ $(document).ready(function() {
             let movimentacoes = [];
             let estoque = [];
             let editandoItemId = null;
@@ -92,7 +92,7 @@ $(document).ready(function() {
                     
                     if (quantidade <= 0) return;
 
-                    // Procurar produto, lote e cliente no estoque
+                    // Procurar produto, lote e cliente no estoque (mesmo que não tenha registro de entrada anterior)
                     const indexEstoque = estoque.findIndex(item => 
                         item.produto === nomeProduto && 
                         item.lote === lote && 
@@ -118,15 +118,49 @@ $(document).ready(function() {
                             estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
                         }
                     } else if (tipoMovimentacao === 'saida') {
+                        // Para saída, verifica se existe no estoque do cliente (independente de entrada anterior)
                         if (indexEstoque === -1) {
-                            // Produto não encontrado no estoque - mostrar alerta e NÃO registrar
-                            mostrarAlertaProdutoNaoEncontrado(cliente, nomeProduto, lote);
-                            todasSucesso = false;
+                            // Verifica se existe algum registro do produto (mesmo sem entrada) no estoque do cliente
+                            const existeNoEstoqueCliente = estoque.some(item => 
+                                item.produto === nomeProduto && 
+                                item.cliente === cliente
+                            );
+                            
+                            if (existeNoEstoqueCliente) {
+                                // Se existe no estoque do cliente (mesmo sem registro de entrada), cria novo registro com quantidade zero e depois subtrai
+                                estoque.push({
+                                    id: Date.now() + Math.random(),
+                                    cliente: cliente,
+                                    produto: nomeProduto,
+                                    lote: lote,
+                                    dataFabricacao: dataFabricacao,
+                                    dataVencimento: dataVencimento,
+                                    quantidade: 0,
+                                    ultimaMovimentacao: dataMovimentacao
+                                });
+                                // Agora subtrai a quantidade
+                                const novoIndex = estoque.length - 1;
+                                estoque[novoIndex].quantidade -= quantidade;
+                                
+                                // Se quantidade ficar negativa, mostra alerta mas continua
+                                if (estoque[novoIndex].quantidade < 0) {
+                                    console.warn(`Quantidade negativa para ${nomeProduto} (Lote: ${lote}) do cliente ${cliente}`);
+                                }
+                            } else {
+                                // Produto não encontrado no estoque do cliente
+                                mostrarAlertaProdutoNaoEncontrado(cliente, nomeProduto, lote);
+                                todasSucesso = false;
+                            }
                         } else {
+                            // Produto encontrado no estoque
                             // Verificar se há quantidade suficiente
                             if (estoque[indexEstoque].quantidade < quantidade) {
-                                alert(`Quantidade insuficiente no estoque para ${nomeProduto} (Lote: ${lote}) do cliente ${cliente}!\nEstoque atual: ${estoque[indexEstoque].quantidade}, Tentativa de saída: ${quantidade}`);
-                                todasSucesso = false;
+                                // Permite saída mesmo com quantidade insuficiente (pode ficar negativo)
+                                estoque[indexEstoque].quantidade -= quantidade;
+                                estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
+                                
+                                // Mostra alerta mas continua
+                                console.warn(`Quantidade insuficiente para ${nomeProduto} (Lote: ${lote}) do cliente ${cliente}. Estoque ficará negativo.`);
                             } else {
                                 estoque[indexEstoque].quantidade -= quantidade;
                                 estoque[indexEstoque].ultimaMovimentacao = dataMovimentacao;
@@ -143,7 +177,7 @@ $(document).ready(function() {
                 return todasSucesso;
             }
 
-            // Criar template de produto
+            // Criar template de produto com autocomplete
             function criarTemplateProduto(index) {
                 const hoje = new Date().toISOString().split('T')[0];
                 const umAnoDepois = new Date();
@@ -159,7 +193,10 @@ $(document).ready(function() {
                         <div class="row g-2">
                             <div class="col-12 col-md-4">
                                 <label class="form-label">PRODUTO *</label>
-                                <input type="text" class="form-control produto-nome" placeholder="Nome do Produto" required>
+                                <div class="form-group-relative">
+                                    <input type="text" class="form-control produto-nome" placeholder="Nome do Produto" required>
+                                    <div class="autocomplete produto-autocomplete" style="display:none;"></div>
+                                </div>
                             </div>
                             <div class="col-12 col-md-2">
                                 <label class="form-label">QTDE *</label>
@@ -200,6 +237,9 @@ $(document).ready(function() {
                 $('.remove-produto-btn').off('click').on('click', function() {
                     $(this).closest('.produto-item').remove();
                 });
+                
+                // Configurar autocomplete para o novo produto
+                setupProdutoAutocomplete();
             }
 
             // Inicializar com um produto
@@ -207,6 +247,201 @@ $(document).ready(function() {
 
             // Adicionar novo produto
             $('#addProdutoBtn').on('click', adicionarProduto);
+
+            // Função para obter clientes únicos do estoque
+            function getClientesUnicos() {
+                const clientes = [...new Set(estoque.map(item => item.cliente))];
+                return clientes.sort();
+            }
+
+            // Função para obter produtos de um cliente específico
+            function getProdutosDoCliente(cliente) {
+                const produtos = estoque
+                    .filter(item => item.cliente === cliente)
+                    .map(item => item.produto);
+                return [...new Set(produtos)].sort();
+            }
+
+            // Configurar autocomplete para cliente
+            function setupClienteAutocomplete() {
+                const $clienteInput = $('#cliente');
+                const $autocomplete = $('#clienteAutocomplete');
+                let currentIndex = -1;
+                let currentSuggestions = [];
+
+                $clienteInput.on('input', function() {
+                    const query = $(this).val().toLowerCase();
+                    if (query.length === 0) {
+                        $autocomplete.hide();
+                        return;
+                    }
+
+                    const clientes = getClientesUnicos();
+                    currentSuggestions = clientes.filter(cliente => 
+                        cliente.toLowerCase().includes(query)
+                    );
+
+                    if (currentSuggestions.length === 0) {
+                        $autocomplete.hide();
+                        return;
+                    }
+
+                    let html = '';
+                    currentSuggestions.forEach(cliente => {
+                        html += `<div class="autocomplete-item">${cliente}</div>`;
+                    });
+                    $autocomplete.html(html).show();
+
+                    // Adicionar eventos de clique
+                    $autocomplete.find('.autocomplete-item').on('click', function() {
+                        const selectedCliente = $(this).text();
+                        $clienteInput.val(selectedCliente);
+                        $autocomplete.hide();
+                        currentIndex = -1;
+                        
+                        // Atualizar autocomplete dos produtos
+                        setupProdutoAutocomplete();
+                    });
+
+                    // Navegação com teclado
+                    $autocomplete.find('.autocomplete-item').on('mouseenter', function() {
+                        $(this).addClass('highlight').siblings().removeClass('highlight');
+                    });
+                });
+
+                // Fechar autocomplete ao clicar fora
+                $(document).on('click', function(e) {
+                    if (!$(e.target).closest('.form-group-relative').length) {
+                        $autocomplete.hide();
+                    }
+                });
+
+                // Navegação com teclado
+                $clienteInput.on('keydown', function(e) {
+                    if ($autocomplete.is(':visible')) {
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            currentIndex = (currentIndex + 1) % currentSuggestions.length;
+                            updateHighlight();
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            currentIndex = currentIndex <= 0 ? currentSuggestions.length - 1 : currentIndex - 1;
+                            updateHighlight();
+                        } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (currentIndex >= 0 && currentIndex < currentSuggestions.length) {
+                                const selectedCliente = currentSuggestions[currentIndex];
+                                $clienteInput.val(selectedCliente);
+                                $autocomplete.hide();
+                                currentIndex = -1;
+                                
+                                // Atualizar autocomplete dos produtos
+                                setupProdutoAutocomplete();
+                            }
+                        }
+                    }
+                });
+
+                function updateHighlight() {
+                    $autocomplete.find('.autocomplete-item').removeClass('highlight');
+                    if (currentIndex >= 0) {
+                        $autocomplete.find('.autocomplete-item').eq(currentIndex).addClass('highlight');
+                    }
+                }
+            }
+
+            // Configurar autocomplete para produtos
+            function setupProdutoAutocomplete() {
+                const clienteSelecionado = $('#cliente').val();
+                if (!clienteSelecionado) return;
+
+                $('.produto-nome').each(function() {
+                    const $input = $(this);
+                    const $autocomplete = $input.siblings('.produto-autocomplete');
+                    let currentIndex = -1;
+                    let currentSuggestions = [];
+
+                    $input.on('input', function() {
+                        const query = $(this).val().toLowerCase();
+                        if (query.length === 0) {
+                            $autocomplete.hide();
+                            return;
+                        }
+
+                        const produtos = getProdutosDoCliente(clienteSelecionado);
+                        currentSuggestions = produtos.filter(produto => 
+                            produto.toLowerCase().includes(query)
+                        );
+
+                        if (currentSuggestions.length === 0) {
+                            $autocomplete.hide();
+                            return;
+                        }
+
+                        let html = '';
+                        currentSuggestions.forEach(produto => {
+                            html += `<div class="autocomplete-item">${produto}</div>`;
+                        });
+                        $autocomplete.html(html).show();
+
+                        // Adicionar eventos de clique
+                        $autocomplete.find('.autocomplete-item').on('click', function() {
+                            const selectedProduto = $(this).text();
+                            $input.val(selectedProduto);
+                            $autocomplete.hide();
+                            currentIndex = -1;
+                        });
+
+                        // Navegação com teclado
+                        $autocomplete.find('.autocomplete-item').on('mouseenter', function() {
+                            $(this).addClass('highlight').siblings().removeClass('highlight');
+                        });
+                    });
+
+                    // Fechar autocomplete ao clicar fora
+                    $(document).on('click', function(e) {
+                        if (!$(e.target).closest('.form-group-relative').length) {
+                            $autocomplete.hide();
+                        }
+                    });
+
+                    // Navegação com teclado
+                    $input.on('keydown', function(e) {
+                        if ($autocomplete.is(':visible')) {
+                            if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                currentIndex = (currentIndex + 1) % currentSuggestions.length;
+                                updateHighlight();
+                            } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                currentIndex = currentIndex <= 0 ? currentSuggestions.length - 1 : currentIndex - 1;
+                                updateHighlight();
+                            } else if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (currentIndex >= 0 && currentIndex < currentSuggestions.length) {
+                                    const selectedProduto = currentSuggestions[currentIndex];
+                                    $input.val(selectedProduto);
+                                    $autocomplete.hide();
+                                    currentIndex = -1;
+                                }
+                            }
+                        }
+                    });
+
+                    function updateHighlight() {
+                        $autocomplete.find('.autocomplete-item').removeClass('highlight');
+                        if (currentIndex >= 0) {
+                            $autocomplete.find('.autocomplete-item').eq(currentIndex).addClass('highlight');
+                        }
+                    }
+                });
+            }
+
+            // Configurar autocompletes ao carregar
+            setupClienteAutocomplete();
+            
+            // Adicionar evento de mudança no campo cliente
+            $('#cliente').on('input', setupProdutoAutocomplete);
 
             // Adicionar dados ao formulário de movimentação
             $('#dataForm').on('submit', function(e) {
@@ -269,12 +504,10 @@ $(document).ready(function() {
                     return;
                 }
 
-                // Verificar se é saída e validar estoque
+                // Verificar se é saída e atualizar estoque
                 if (novoDado.tipoMovimentacao === 'saida') {
                     const sucesso = atualizarEstoque(novoDado);
-                    if (!sucesso) {
-                        return; // Não adicionar ao array de movimentações se falhou
-                    }
+                    // Mesmo que não tenha sucesso em todos, continua (permite saída com estoque negativo)
                 } else {
                     // Para entrada, sempre atualiza o estoque
                     atualizarEstoque(novoDado);
@@ -549,13 +782,16 @@ $(document).ready(function() {
                         const estoqueZeroClasse = item.quantidade === 0 ? 'estoque-zero' : '';
                         const finalClasse = statusClasse ? statusClasse : estoqueZeroClasse;
                         
+                        // Destacar quantidades negativas
+                        const quantidadeClasse = item.quantidade < 0 ? 'text-danger fw-bold' : '';
+                        
                         tableRows += `
                             <tr class="${finalClasse}">
                                 <td>${item.produto}</td>
                                 <td>${item.lote}</td>
                                 <td>${formatarData(item.dataFabricacao)}</td>
                                 <td>${formatarData(item.dataVencimento)}</td>
-                                <td><strong>${item.quantidade}</strong></td>
+                                <td class="${quantidadeClasse}">${item.quantidade}</td>
                                 <td>${statusVenc.status}</td>
                                 <td>
                                     <button class="edit-btn btn-sm" data-id="${item.id}">Editar</button>
@@ -802,7 +1038,7 @@ $(document).ready(function() {
                     }
                     estoqueAgrupado[chave].totalQuantidade += item.quantidade;
                     estoqueAgrupado[chave].lotes.add(item.lote);
-                    estoqueAgrupado[chave].datasVencimento.push(item.dataVencimento);
+                    estoqueAgrупado[chave].datasVencimento.push(item.dataVencimento);
                 });
 
                 const wsData = Object.values(estoqueAgrupado).map(item => {
@@ -849,6 +1085,7 @@ $(document).ready(function() {
             carregarDados();
             aplicarFiltros();
             atualizarTabelasEstoque();
+            setupClienteAutocomplete();
 
             // Atualizar data atual nos campos relevantes
             const hoje = new Date().toISOString().split('T')[0];
