@@ -1038,7 +1038,7 @@
                     }
                     estoqueAgrupado[chave].totalQuantidade += item.quantidade;
                     estoqueAgrupado[chave].lotes.add(item.lote);
-                    estoqueAgrупado[chave].datasVencimento.push(item.dataVencimento);
+                    estoqueAgrupado[chave].datasVencimento.push(item.dataVencimento);
                 });
 
                 const wsData = Object.values(estoqueAgrupado).map(item => {
